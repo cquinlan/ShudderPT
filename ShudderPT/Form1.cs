@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
-using System.Diagnostics;
-using System.IO;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace ShudderPT
@@ -18,9 +18,13 @@ namespace ShudderPT
         //Our ffmpeg process
         Process process = new Process();
 
+        //Other stuff for file checking
+        
+
         //FFMpeg flags
         string targetURL = "rtmp://stream.reblink.org/live/Reblink";
         string fileName = "";
+        string subName = "";
         int[] startTime = { 0, 0, 0 };
         int vBit = 1000;
         int aBit = 196;
@@ -30,8 +34,6 @@ namespace ShudderPT
         string vCodec = "libx264";
         string aCodec = "libmp3lame";
         bool paused = false;
-
-
 
         //Thread level kernal bullshit. I SHOULDN'T NEED THIS.
         [Flags]
@@ -73,25 +75,27 @@ namespace ShudderPT
         {
             if (!isRunning())
             {
-                //Our args for ffmpeg.
-                string runArgs = " -re -y "
-                    + "-ss " + string.Join(":", startTime) //Start time
-                    + " -i \"" + fileName                  //File name
-                    + "\" -vcodec " + vCodec               //Video codec
-                    + " -b:v " + vBit + "k"                //Video bitrate
-                    + " -r " + vRate                       //Video framerate
-                    + " -bufsize " + vBit*2 +"k"           //Buffer size
-                    + " -g " + vRate*2                     //GOP size
-                    + " -s " + vSize                       //Video resolution
-                    + " -filter:v yadif -acodec " + aCodec //Audio codec
-                    + " -ab " + aBit + "k"                 //Audio bitrate
-                    + " -ac 2"                             //Audio channels
-                    + " -ar " + aRate                      //Audio sample rate
-                    + " -f flv \"" + targetURL + "\"";     //Target url
+                //Subs or no subs?
+                string sub = "";
+                if (subCheck.Checked) { sub = "-vf subtitles=" + subName; }
 
-                //Other
-                int lineCount = 0;
-                StringBuilder output = new StringBuilder();
+                //Our args for ffmpeg.
+                string[] runArgs = { "-re -y "
+                    , "-ss " + string.Join(":", startTime)//Start time
+                    , "-i \"" + fileName + "\""           //File name
+                    , "-vcodec " + vCodec                 //Video codec
+                    , "-b:v " + vBit + "k"                //Video bitrate
+                    , "-r " + vRate                       //Video framerate
+                    , "-bufsize " + vBit*2 +"k"           //Buffer size
+                    , "-g " + vRate*2                     //GOP size
+                    , "-s " + vSize                       //Video resolution
+                    , "-filter:v yadif "                  //Video filters
+                    , "-acodec " + aCodec                 //Audio codec
+                    , "-ab " + aBit + "k"                 //Audio bitrate
+                    , "-ac 2"                             //Audio channels
+                    , "-ar " + aRate                      //Audio sample rate
+                    , sub                                 //Subtitles
+                    , "-f flv \"" + targetURL + "\"" };   //Target url
 
                 //Run the thing.
                 process.StartInfo.FileName = "ffmpeg.exe";
@@ -99,7 +103,7 @@ namespace ShudderPT
                 process.StartInfo.RedirectStandardOutput = true;
                 process.StartInfo.RedirectStandardError = true;
                 process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.Arguments = runArgs;
+                process.StartInfo.Arguments = string.Join(" ",runArgs);
 
                 //Event to handle async whatever
                 process.ErrorDataReceived += new DataReceivedEventHandler((sending, ev) =>
@@ -107,15 +111,13 @@ namespace ShudderPT
                     // Prepend line numbers to each line of the output. 
                     if (!String.IsNullOrEmpty(ev.Data))
                     {
-                        lineCount++;
-                        output.Append("\n[" + lineCount + "]: " + ev.Data);
-                        Console.WriteLine(ev.Data);
+                        Console.WriteLine(@ev.Data);
                         if (ev.Data.Contains("frame=")) { updateStatus(ev.Data); }
                     }
                 });
 
                 process.Start();
-                Console.WriteLine(runArgs);
+                Console.WriteLine(string.Join(" ",runArgs));
 
                 // Synchronously read the standard output of the spawned process. 
                 process.BeginErrorReadLine();
@@ -126,7 +128,7 @@ namespace ShudderPT
         private void updateStatus(string text)
         {
             //Make sure our controls still exists. User may have closed window.
-            if (!this.statusBar.IsDisposed && !this.statusStrip.IsDisposed)
+            if (!this.IsDisposed)
             {
                 //Check to see if we are from another thread.
                 if (this.statusStrip.InvokeRequired)
@@ -224,6 +226,19 @@ namespace ShudderPT
         {
             try { fileName = Environment.GetCommandLineArgs()[1]; }
             catch (Exception error) { }
+            if( fileName != "")
+            {
+                //Look for matching .srt for our file.
+                string[] paths = Directory.GetFiles(Path.GetDirectoryName(Path.GetFullPath(fileName)));
+                string sub = Path.GetDirectoryName(Path.GetFullPath(fileName)) +"\\"+Path.GetFileNameWithoutExtension(fileName) + ".srt";
+                if (paths.Contains(sub))
+                {
+                    //Update our sub name. THE ESCAPE IS REAL.
+                    subName = "\"" + sub.Replace("\\","\\\\\\\\").Replace(":", "\\\\:") + "\"";
+                    subCheck.Enabled = true;
+                    //updateStatus(subName);
+                }
+            }
             destination.Text = targetURL;
             file.Text = fileName;
             bitrateAudio.Value = aBit;
@@ -250,7 +265,6 @@ namespace ShudderPT
             if (process.StartInfo.FileName != "")
             {
                 //So sain. UUUUNF.
-                //if (process.Responding) { running = true; }
                 if (!process.HasExited) { running = true; }
             }
             return running;

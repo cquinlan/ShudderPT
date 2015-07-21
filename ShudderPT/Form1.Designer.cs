@@ -46,6 +46,7 @@
             this.label6 = new System.Windows.Forms.Label();
             this.statusStrip = new System.Windows.Forms.StatusStrip();
             this.statusBar = new System.Windows.Forms.ToolStripStatusLabel();
+            this.subCheck = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)(this.bitrateVideo)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.bitrateAudio)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numHour)).BeginInit();
@@ -66,15 +67,15 @@
             // 
             // file
             // 
-            this.file.Location = new System.Drawing.Point(12, 12);
+            this.file.Location = new System.Drawing.Point(12, 38);
             this.file.Name = "file";
-            this.file.Size = new System.Drawing.Size(403, 20);
+            this.file.Size = new System.Drawing.Size(331, 20);
             this.file.TabIndex = 1;
             this.file.TextChanged += new System.EventHandler(this.file_TextChanged);
             // 
             // destination
             // 
-            this.destination.Location = new System.Drawing.Point(12, 38);
+            this.destination.Location = new System.Drawing.Point(12, 12);
             this.destination.Name = "destination";
             this.destination.Size = new System.Drawing.Size(403, 20);
             this.destination.TabIndex = 2;
@@ -135,7 +136,6 @@
             // 
             // buttonPause
             // 
-            this.buttonPause.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.buttonPause.Location = new System.Drawing.Point(421, 64);
             this.buttonPause.Name = "buttonPause";
             this.buttonPause.Size = new System.Drawing.Size(74, 36);
@@ -210,7 +210,7 @@
             this.statusStrip.BackColor = System.Drawing.SystemColors.ScrollBar;
             this.statusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.statusBar});
-            this.statusStrip.Location = new System.Drawing.Point(0, 109);
+            this.statusStrip.Location = new System.Drawing.Point(0, 111);
             this.statusStrip.Name = "statusStrip";
             this.statusStrip.Size = new System.Drawing.Size(508, 22);
             this.statusStrip.SizingGrip = false;
@@ -223,11 +223,23 @@
             this.statusBar.Size = new System.Drawing.Size(26, 17);
             this.statusBar.Text = "Idle";
             // 
+            // subCheck
+            // 
+            this.subCheck.AutoSize = true;
+            this.subCheck.Enabled = false;
+            this.subCheck.Location = new System.Drawing.Point(349, 40);
+            this.subCheck.Name = "subCheck";
+            this.subCheck.Size = new System.Drawing.Size(66, 17);
+            this.subCheck.TabIndex = 19;
+            this.subCheck.Text = "Subtitles";
+            this.subCheck.UseVisualStyleBackColor = true;
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(508, 131);
+            this.ClientSize = new System.Drawing.Size(508, 133);
+            this.Controls.Add(this.subCheck);
             this.Controls.Add(this.statusStrip);
             this.Controls.Add(this.label6);
             this.Controls.Add(this.label5);
@@ -282,6 +294,7 @@
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.StatusStrip statusStrip;
         private System.Windows.Forms.ToolStripStatusLabel statusBar;
+        private System.Windows.Forms.CheckBox subCheck;
     }
 }
 
