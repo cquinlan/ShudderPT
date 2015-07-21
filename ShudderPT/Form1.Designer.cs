@@ -44,12 +44,14 @@
             this.label4 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
             this.label6 = new System.Windows.Forms.Label();
-            this.statusBar = new System.Windows.Forms.TextBox();
+            this.statusStrip = new System.Windows.Forms.StatusStrip();
+            this.statusBar = new System.Windows.Forms.ToolStripStatusLabel();
             ((System.ComponentModel.ISupportInitialize)(this.bitrateVideo)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.bitrateAudio)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numHour)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numMin)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numSec)).BeginInit();
+            this.statusStrip.SuspendLayout();
             this.SuspendLayout();
             // 
             // buttonStream
@@ -203,21 +205,30 @@
             this.label6.TabIndex = 16;
             this.label6.Text = "Start Time";
             // 
+            // statusStrip
+            // 
+            this.statusStrip.BackColor = System.Drawing.SystemColors.ScrollBar;
+            this.statusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.statusBar});
+            this.statusStrip.Location = new System.Drawing.Point(0, 109);
+            this.statusStrip.Name = "statusStrip";
+            this.statusStrip.Size = new System.Drawing.Size(508, 22);
+            this.statusStrip.SizingGrip = false;
+            this.statusStrip.TabIndex = 18;
+            this.statusStrip.Text = "statusStrip";
+            // 
             // statusBar
             // 
-            this.statusBar.Location = new System.Drawing.Point(11, 106);
             this.statusBar.Name = "statusBar";
-            this.statusBar.ReadOnly = true;
-            this.statusBar.Size = new System.Drawing.Size(484, 20);
-            this.statusBar.TabIndex = 17;
+            this.statusBar.Size = new System.Drawing.Size(26, 17);
             this.statusBar.Text = "Idle";
             // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(508, 140);
-            this.Controls.Add(this.statusBar);
+            this.ClientSize = new System.Drawing.Size(508, 131);
+            this.Controls.Add(this.statusStrip);
             this.Controls.Add(this.label6);
             this.Controls.Add(this.label5);
             this.Controls.Add(this.label4);
@@ -244,6 +255,8 @@
             ((System.ComponentModel.ISupportInitialize)(this.numHour)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.numMin)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.numSec)).EndInit();
+            this.statusStrip.ResumeLayout(false);
+            this.statusStrip.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -267,7 +280,8 @@
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Label label6;
-        public System.Windows.Forms.TextBox statusBar;
+        private System.Windows.Forms.StatusStrip statusStrip;
+        private System.Windows.Forms.ToolStripStatusLabel statusBar;
     }
 }
 

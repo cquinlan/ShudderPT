@@ -125,11 +125,11 @@ namespace ShudderPT
         //Special invoke threadsafe trickery
         private void updateStatus(string text)
         {
-            //Make sure our control still exists. User may have close window.
-            if (!this.statusBar.IsDisposed)
+            //Make sure our controls still exists. User may have closed window.
+            if (!this.statusBar.IsDisposed && !this.statusStrip.IsDisposed)
             {
                 //Check to see if we are from another thread.
-                if (this.statusBar.InvokeRequired)
+                if (this.statusStrip.InvokeRequired)
                 {
                     //Do invoke/callback.
                     updateTextCallback d = new updateTextCallback(updateStatus);
@@ -246,8 +246,10 @@ namespace ShudderPT
         {
             //Basic sanity check. TODO Find a better way to do this.
             bool running = false;
+            //Did we even get there?
             if (process.StartInfo.FileName != "")
             {
+                //So sain. UUUUNF.
                 //if (process.Responding) { running = true; }
                 if (!process.HasExited) { running = true; }
             }
