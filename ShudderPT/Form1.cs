@@ -19,17 +19,20 @@ namespace ShudderPT
         Process process = new Process();
 
         //Other stuff for file checking
-        
+        Stopwatch time = new Stopwatch();
+        Timer globalTime = new Timer();
+        TimeSpan lastTime = new TimeSpan();
 
         //FFMpeg flags
         string targetURL = "rtmp://stream.reblink.org/live/Reblink";
         string fileName = "";
         string subName = "";
         int[] startTime = { 0, 0, 0 };
-        int vBit = 1000;
+        int vBit = 1500;
         int aBit = 196;
         int vRate = 30;
         int aRate = 44100;
+        int crfNum = 18;
         string vSize = "720x406";
         string vCodec = "libx264";
         string aCodec = "libmp3lame";
@@ -57,7 +60,9 @@ namespace ShudderPT
         [DllImport("kernel32.dll")]
         static extern int ResumeThread(IntPtr hThread);
 
+        //Threadsafe callback delegates
         delegate void updateTextCallback(string text);
+        delegate void updateTitleCallback();
 
         //Init form
         public Main()
@@ -67,8 +72,18 @@ namespace ShudderPT
 
         private void buttonStream_Click(object sender, EventArgs e)
         {
-            StartStream();
-            buttonPause.Enabled = true;
+            if (!isRunning())
+            {
+                StartStream();
+                buttonPause.Enabled = true;
+                buttonStream.Text = "Stop";
+            }
+            else
+            {
+                StopStream();
+                buttonPause.Enabled = false;
+                buttonStream.Text = "Stream";
+            }
         }
 
         public void StartStream()
@@ -90,6 +105,7 @@ namespace ShudderPT
                     , "-g " + vRate*2                     //GOP size
                     , "-s " + vSize                       //Video resolution
                     , "-filter:v yadif "                  //Video filters
+                    //, "-crf " + crfNum                  //CRF value
                     , "-acodec " + aCodec                 //Audio codec
                     , "-ab " + aBit + "k"                 //Audio bitrate
                     , "-ac 2"                             //Audio channels
@@ -108,19 +124,37 @@ namespace ShudderPT
                 //Event to handle async whatever
                 process.ErrorDataReceived += new DataReceivedEventHandler((sending, ev) =>
                 {
-                    // Prepend line numbers to each line of the output. 
                     if (!String.IsNullOrEmpty(ev.Data))
                     {
                         Console.WriteLine(@ev.Data);
-                        if (ev.Data.Contains("frame=")) { updateStatus(ev.Data); }
+                        if (ev.Data.Contains("frame="))
+                        {
+                            updateStatus(ev.Data);
+                            updateTitle();
+                        }
                     }
                 });
 
                 process.Start();
                 Console.WriteLine(string.Join(" ",runArgs));
 
-                // Synchronously read the standard output of the spawned process. 
-                process.BeginErrorReadLine();
+                // Synchronously read the standard output of the spawned process.
+                try {
+                    process.BeginErrorReadLine();
+                    lastTime = time.Elapsed;
+                    time.Start();
+                }
+                catch (Exception error) { }
+            }
+        }
+
+        public void StopStream()
+        {
+            //Stop the instance of ffmpeg
+            if (isRunning())
+            {
+                process.Kill();
+                time.Stop();
             }
         }
 
@@ -138,6 +172,40 @@ namespace ShudderPT
                     this.Invoke(d, new object[] { text });
                 }
                 else { statusBar.Text = text; }
+            }
+        }
+
+        private void updateTitle()
+        {
+            //Again. Make sure we still exist.
+            if (!this.IsDisposed)
+            {
+                //YO WE SAFE?
+                if (this.timeDiff.InvokeRequired)
+                {
+                    //SHIT NO WE AINT.
+                    updateTitleCallback d = new updateTitleCallback(updateTitle);
+                    this.Invoke(d);
+                }
+                else
+                {
+                    double update = (time.Elapsed - lastTime).TotalMilliseconds;
+                    this.timeDiff.Text = update.ToString();
+                    //Color the bar depending on the time it took to transcode the last frame.
+                    if (update < 600)
+                    {
+                        timeDiff.BackColor = Color.Green;
+                    }
+                    if (update >= 600 && update < 1000)
+                    {
+                        timeDiff.BackColor = Color.Yellow;
+                    }
+                    if (update >= 1000)
+                    {
+                        timeDiff.BackColor = Color.Red;
+                    }
+                    lastTime = time.Elapsed;
+                }
             }
         }
 
@@ -215,11 +283,7 @@ namespace ShudderPT
 
         private void Main_FormClosing(object sender, FormClosingEventArgs e)
         {
-            //Stop the instance of ffmpeg
-            if (isRunning())
-            {
-                process.Kill();
-            }
+            StopStream();
         }
 
         private void Main_Load(object sender, EventArgs e)
@@ -230,11 +294,12 @@ namespace ShudderPT
             {
                 //Look for matching .srt for our file.
                 string[] paths = Directory.GetFiles(Path.GetDirectoryName(Path.GetFullPath(fileName)));
+                getFileData(fileName);
                 string sub = Path.GetDirectoryName(Path.GetFullPath(fileName)) +"\\"+Path.GetFileNameWithoutExtension(fileName) + ".srt";
                 if (paths.Contains(sub))
                 {
                     //Update our sub name. THE ESCAPE IS REAL.
-                    subName = "\"" + sub.Replace("\\","\\\\\\\\").Replace(":", "\\\\:") + "\"";
+                    subName = "\"" + sub.Replace("\\","\\\\\\\\").Replace(":", "\\\\:") + "\"" + ":force_style='FontName=Arial,FontSize=20'";
                     subCheck.Enabled = true;
                     //updateStatus(subName);
                 }
@@ -298,6 +363,46 @@ namespace ShudderPT
         private void numSec_ValueChanged(object sender, EventArgs e)
         {
             startTime[2] = (int)numSec.Value;
+        }
+
+        private void globalTimer_Tick(object sender, EventArgs e)
+        {
+            //this.Text = time.Elapsed.ToString();
+        }
+
+        public string[] getFileData(string path)
+        {
+            Process ffmpeg = new Process();
+            //Run the thing.
+            ffmpeg.StartInfo.FileName = "ffmpeg.exe";
+            ffmpeg.StartInfo.UseShellExecute = false;
+            ffmpeg.StartInfo.RedirectStandardOutput = true;
+            ffmpeg.StartInfo.RedirectStandardError = true;
+            ffmpeg.StartInfo.CreateNoWindow = true;
+            ffmpeg.StartInfo.Arguments = "-i " + "\"" + Path.GetFullPath(path) + "\"";
+
+            List<string> output = new List<string>();
+
+            ffmpeg.Start();
+
+            using (StreamReader reader = ffmpeg.StandardError)
+            {
+                string result = reader.ReadToEnd();
+                result = result.Substring(result.IndexOf("Duration: "));
+                //Split the output.
+                string[] splits = result.Split(new string[] { Environment.NewLine },StringSplitOptions.None);
+
+
+
+                //Put the info in the box. WHY NOT?
+                infoList.Text = result;
+
+                Console.WriteLine(result);
+
+                output.Add(result);
+            }
+
+            return output.ToArray();
         }
     }
 }
