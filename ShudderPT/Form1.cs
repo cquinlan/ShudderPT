@@ -20,8 +20,8 @@ namespace ShudderPT
 
         //Other stuff for file checking
         Stopwatch time = new Stopwatch();
-        Timer globalTime = new Timer();
         TimeSpan lastTime = new TimeSpan();
+        TimeSpan runtime = new TimeSpan();
 
         //FFMpeg flags
         string targetURL = "rtmp://stream.reblink.org/live/Reblink";
@@ -365,44 +365,48 @@ namespace ShudderPT
             startTime[2] = (int)numSec.Value;
         }
 
-        private void globalTimer_Tick(object sender, EventArgs e)
+        public Dictionary<string,string> getFileData(string path)
         {
-            //this.Text = time.Elapsed.ToString();
-        }
-
-        public string[] getFileData(string path)
-        {
-            Process ffmpeg = new Process();
+            Process ffprobe = new Process();
             //Run the thing.
-            ffmpeg.StartInfo.FileName = "ffmpeg.exe";
-            ffmpeg.StartInfo.UseShellExecute = false;
-            ffmpeg.StartInfo.RedirectStandardOutput = true;
-            ffmpeg.StartInfo.RedirectStandardError = true;
-            ffmpeg.StartInfo.CreateNoWindow = true;
-            ffmpeg.StartInfo.Arguments = "-i " + "\"" + Path.GetFullPath(path) + "\"";
+            ffprobe.StartInfo.FileName = "ffprobe.exe";
+            ffprobe.StartInfo.UseShellExecute = false;
+            ffprobe.StartInfo.RedirectStandardOutput = true;
+            ffprobe.StartInfo.RedirectStandardError = true;
+            ffprobe.StartInfo.CreateNoWindow = true;
+            ffprobe.StartInfo.Arguments = "-v quiet -print_format compact=p=0 -show_format " + "\"" + Path.GetFullPath(path) + "\"";
 
-            List<string> output = new List<string>();
+            Dictionary<string, string> output = new Dictionary<string, string>();
 
-            ffmpeg.Start();
+            ffprobe.Start();
 
-            using (StreamReader reader = ffmpeg.StandardError)
+            using (StreamReader reader = ffprobe.StandardOutput)
             {
                 string result = reader.ReadToEnd();
-                result = result.Substring(result.IndexOf("Duration: "));
+                //result = result.Substring(result.IndexOf("Duration: "));
+
                 //Split the output.
-                string[] splits = result.Split(new string[] { Environment.NewLine },StringSplitOptions.None);
+                string[] splits = result.Split('|');
 
+                foreach(string s in splits)
+                {
+                    string[] items = s.Split('=');
+                    output.Add(items[0], items[1]);
+                }
 
+                Console.WriteLine(output.ToString());
 
+                //TODO: Move this to it's own setup method with the rest of them.
                 //Put the info in the box. WHY NOT?
-                infoList.Text = result;
+                infoList.Text = result.Replace('|', '\n');
 
-                Console.WriteLine(result);
+                runtime = TimeSpan.FromSeconds((Double.Parse(output["duration"])));
+                fileRuntime.Text = runtime.ToString().TrimEnd('0');
 
-                output.Add(result);
+                numHour.Maximum = runtime.Hours; //TODO: Sanity check for start time.
             }
 
-            return output.ToArray();
+            return output;
         }
     }
 }

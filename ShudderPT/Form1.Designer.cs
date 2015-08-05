@@ -28,12 +28,10 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
             this.buttonStream = new System.Windows.Forms.Button();
             this.buttonPause = new System.Windows.Forms.Button();
             this.statusStrip = new System.Windows.Forms.StatusStrip();
             this.statusBar = new System.Windows.Forms.ToolStripStatusLabel();
-            this.globalTimer = new System.Windows.Forms.Timer(this.components);
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.label6 = new System.Windows.Forms.Label();
@@ -46,18 +44,21 @@
             this.destination = new System.Windows.Forms.TextBox();
             this.file = new System.Windows.Forms.TextBox();
             this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.videoGetSource = new System.Windows.Forms.Button();
             this.trackBar1 = new System.Windows.Forms.TrackBar();
             this.videoRes = new System.Windows.Forms.TextBox();
             this.label3 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
             this.bitrateVideo = new System.Windows.Forms.NumericUpDown();
             this.tabPage3 = new System.Windows.Forms.TabPage();
+            this.audioGetSource = new System.Windows.Forms.Button();
             this.trackBar2 = new System.Windows.Forms.TrackBar();
             this.label2 = new System.Windows.Forms.Label();
             this.bitrateAudio = new System.Windows.Forms.NumericUpDown();
             this.tabPage4 = new System.Windows.Forms.TabPage();
             this.infoList = new System.Windows.Forms.RichTextBox();
             this.timeDiff = new System.Windows.Forms.TextBox();
+            this.fileRuntime = new System.Windows.Forms.TextBox();
             this.statusStrip.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
@@ -111,11 +112,6 @@
             this.statusBar.Size = new System.Drawing.Size(26, 17);
             this.statusBar.Text = "Idle";
             // 
-            // globalTimer
-            // 
-            this.globalTimer.Interval = 1000;
-            this.globalTimer.Tick += new System.EventHandler(this.globalTimer_Tick);
-            // 
             // tabControl1
             // 
             this.tabControl1.Controls.Add(this.tabPage1);
@@ -130,6 +126,7 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.fileRuntime);
             this.tabPage1.Controls.Add(this.label6);
             this.tabPage1.Controls.Add(this.label5);
             this.tabPage1.Controls.Add(this.label4);
@@ -229,11 +226,12 @@
             // 
             this.file.Location = new System.Drawing.Point(6, 32);
             this.file.Name = "file";
-            this.file.Size = new System.Drawing.Size(311, 20);
+            this.file.Size = new System.Drawing.Size(211, 20);
             this.file.TabIndex = 20;
             // 
             // tabPage2
             // 
+            this.tabPage2.Controls.Add(this.videoGetSource);
             this.tabPage2.Controls.Add(this.trackBar1);
             this.tabPage2.Controls.Add(this.videoRes);
             this.tabPage2.Controls.Add(this.label3);
@@ -246,6 +244,15 @@
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Video";
             this.tabPage2.UseVisualStyleBackColor = true;
+            // 
+            // videoGetSource
+            // 
+            this.videoGetSource.Location = new System.Drawing.Point(314, 17);
+            this.videoGetSource.Name = "videoGetSource";
+            this.videoGetSource.Size = new System.Drawing.Size(75, 23);
+            this.videoGetSource.TabIndex = 24;
+            this.videoGetSource.Text = "Source";
+            this.videoGetSource.UseVisualStyleBackColor = true;
             // 
             // trackBar1
             // 
@@ -294,6 +301,7 @@
             // 
             // tabPage3
             // 
+            this.tabPage3.Controls.Add(this.audioGetSource);
             this.tabPage3.Controls.Add(this.trackBar2);
             this.tabPage3.Controls.Add(this.label2);
             this.tabPage3.Controls.Add(this.bitrateAudio);
@@ -304,6 +312,15 @@
             this.tabPage3.TabIndex = 2;
             this.tabPage3.Text = "Audio";
             this.tabPage3.UseVisualStyleBackColor = true;
+            // 
+            // audioGetSource
+            // 
+            this.audioGetSource.Location = new System.Drawing.Point(314, 17);
+            this.audioGetSource.Name = "audioGetSource";
+            this.audioGetSource.Size = new System.Drawing.Size(75, 23);
+            this.audioGetSource.TabIndex = 25;
+            this.audioGetSource.Text = "Source";
+            this.audioGetSource.UseVisualStyleBackColor = true;
             // 
             // trackBar2
             // 
@@ -361,6 +378,15 @@
             this.timeDiff.Size = new System.Drawing.Size(74, 20);
             this.timeDiff.TabIndex = 21;
             // 
+            // fileRuntime
+            // 
+            this.fileRuntime.Location = new System.Drawing.Point(223, 32);
+            this.fileRuntime.Name = "fileRuntime";
+            this.fileRuntime.ReadOnly = true;
+            this.fileRuntime.Size = new System.Drawing.Size(94, 20);
+            this.fileRuntime.TabIndex = 35;
+            this.fileRuntime.Text = "00:00:00.00";
+            // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -404,7 +430,6 @@
         private System.Windows.Forms.Button buttonPause;
         private System.Windows.Forms.StatusStrip statusStrip;
         private System.Windows.Forms.ToolStripStatusLabel statusBar;
-        private System.Windows.Forms.Timer globalTimer;
         private System.Windows.Forms.TabControl tabControl1;
         private System.Windows.Forms.TabPage tabPage1;
         private System.Windows.Forms.Label label6;
@@ -429,6 +454,9 @@
         private System.Windows.Forms.TabPage tabPage4;
         private System.Windows.Forms.RichTextBox infoList;
         private System.Windows.Forms.TextBox timeDiff;
+        private System.Windows.Forms.Button videoGetSource;
+        private System.Windows.Forms.Button audioGetSource;
+        private System.Windows.Forms.TextBox fileRuntime;
     }
 }
 
