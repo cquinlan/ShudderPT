@@ -10,18 +10,21 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Xml;
+using System.Xml.Serialization;
+using System.Dynamic;
 
 namespace ShudderPT
 {
     public partial class Main : Form
     {
-        //Our ffmpeg process
+        //Our ffmpeg process and our file object.
         Process process = new Process();
+        ffprobeType fileObj = new ffprobeType();
 
         //Other stuff for file checking
         Stopwatch time = new Stopwatch();
         TimeSpan lastTime = new TimeSpan();
-        TimeSpan runtime = new TimeSpan();
 
         //FFMpeg flags
         string targetURL = "rtmp://stream.reblink.org/live/Reblink";
@@ -86,6 +89,225 @@ namespace ShudderPT
             }
         }
 
+        private void buttonPause_Click(object sender, EventArgs e)
+        {
+            if (isRunning())
+            {
+                if (!paused)
+                {
+                    SuspendProcess(process.Id);
+                    paused = true;
+                    buttonPause.Text = "Resume";
+                }
+                else
+                {
+                    ResumeProcess(process.Id);
+                    paused = false;
+                    buttonPause.Text = "Pause";
+                }
+            }
+        }
+
+        private void Main_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            StopStream();
+        }
+
+        private void Main_Load(object sender, EventArgs e)
+        {
+            try { fileName = Environment.GetCommandLineArgs()[1]; }
+            catch (Exception error) { }
+
+            if( fileName != "")
+            {
+                //Look for matching .srt for our file.
+                string[] paths = Directory.GetFiles(Path.GetDirectoryName(Path.GetFullPath(fileName)));
+                fileObj = getFileData(fileName);
+
+                string sub = Path.GetDirectoryName(Path.GetFullPath(fileName)) +"\\"+Path.GetFileNameWithoutExtension(fileName) + ".srt";
+                if (paths.Contains(sub))
+                {
+                    //Update our sub name. THE ESCAPE IS REAL.
+                    subName = "\"" + sub.Replace("\\","\\\\\\\\").Replace(":", "\\\\:") + "\"" + ":force_style='FontName=Arial,FontSize=20'";
+                    subCheck.Enabled = true;
+                }
+
+                foreach (streamType stream in fileObj.streams)
+                {
+                    if (stream.codec_type == "subtitle")
+                    {
+                        //The file contains it's own sub stream.
+                        subName = "\"" + fileObj.format.filename.Replace("\\", "\\\\\\\\").Replace(":", "\\\\:") + "\"";
+                        subCheck.Enabled = true;
+                    }
+                }
+            }
+            destination.Text = targetURL;
+            file.Text = fileName;
+            bitrateAudio.Value = aBit;
+            bitrateVideo.Value = vBit;
+            videoRes.Text = vSize;
+            buttonPause.Enabled = false;
+        }
+
+        private void file_TextChanged(object sender, EventArgs e)
+        {
+            fileName = file.Text;
+        }
+
+        private void destination_TextChanged(object sender, EventArgs e)
+        {
+            targetURL = destination.Text;
+        }
+
+        private void bitrateVideo_ValueChanged(object sender, EventArgs e)
+        {
+            vBit = (int)bitrateVideo.Value;
+        }
+
+        private void bitrateAudio_ValueChanged(object sender, EventArgs e)
+        {
+            aBit = (int)bitrateAudio.Value;
+        }
+
+        private void videoRes_TextChanged(object sender, EventArgs e)
+        {
+            vSize = videoRes.Text;
+        }
+
+        private void numHour_ValueChanged(object sender, EventArgs e)
+        {
+            startTime[0] = (int)numHour.Value;
+        }
+
+        private void numMin_ValueChanged(object sender, EventArgs e)
+        {
+            startTime[1] = (int)numMin.Value;
+        }
+
+        private void numSec_ValueChanged(object sender, EventArgs e)
+        {
+            startTime[2] = (int)numSec.Value;
+        }
+
+        private void videoGetSource_Click(object sender, EventArgs e)
+        {
+            foreach(streamType stream in fileObj.streams)
+            {
+                if(stream.codec_type == "video")
+                {
+                    videoRes.Text = stream.coded_width + "x" + stream.coded_height;
+                    //Do we actually have a bitrate for this stream?
+                    //if(stream.bit_rate != 0) { bitrateVideo.Value = Int32.Parse(stream.bit_rate.ToString().Remove(stream.bit_rate.ToString().Length - 3)); }
+                }
+            }
+        }
+
+        private bool isRunning()
+        {
+            //Basic sanity check. TODO Find a better way to do this.
+            bool running = false;
+            //Did we even get there?
+            if (process.StartInfo.FileName != "")
+            {
+                //So sain. UUUUNF.
+                if (!process.HasExited) { running = true; }
+            }
+            return running;
+        }
+
+        public ffprobeType getFileData(string path)
+        {
+            Process ffprobe = new Process();
+            //Run the thing.
+            ffprobe.StartInfo.FileName = "ffprobe.exe";
+            ffprobe.StartInfo.UseShellExecute = false;
+            ffprobe.StartInfo.RedirectStandardOutput = true;
+            ffprobe.StartInfo.RedirectStandardError = true;
+            ffprobe.StartInfo.CreateNoWindow = true;
+            ffprobe.StartInfo.Arguments = "-v quiet -print_format xml=q=1 -show_format -show_streams " + "\"" + Path.GetFullPath(path) + "\"";
+
+            ffprobeType output = new ffprobeType();
+
+            ffprobe.Start();
+
+            //Deserialize output back into the xsd generated class.
+            XmlSerializer ser = new XmlSerializer(typeof(ffprobeType));
+            ffprobeType file;
+
+            Stream stream = ffprobe.StandardOutput.BaseStream;
+
+            string content;
+            var reader = new StreamReader(stream);
+            content = reader.ReadToEnd();
+
+            if (stream.CanSeek)
+            {
+                stream.Seek(0, SeekOrigin.Begin);
+            }
+            else
+            {
+                stream.Dispose();
+                stream = new MemoryStream(Encoding.UTF8.GetBytes(content));
+            }
+
+            using (XmlReader myReader = XmlReader.Create(stream))
+            {
+                file = (ffprobeType)ser.Deserialize(myReader);
+            }
+
+            stream.Seek(0, SeekOrigin.Begin);
+            infoBox.Text = new StreamReader(stream).ReadToEnd();
+
+            return file;
+        }
+
+        private static void SuspendProcess(int pid)
+        {
+            var process = Process.GetProcessById(pid);
+
+            if (process.ProcessName == string.Empty)
+                return;
+
+            foreach (ProcessThread pT in process.Threads)
+            {
+                IntPtr pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)pT.Id);
+
+                if (pOpenThread == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                SuspendThread(pOpenThread);
+
+            }
+        }
+
+        public static void ResumeProcess(int pid)
+        {
+            var process = Process.GetProcessById(pid);
+
+            if (process.ProcessName == string.Empty)
+                return;
+
+            foreach (ProcessThread pT in process.Threads)
+            {
+                IntPtr pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)pT.Id);
+
+                if (pOpenThread == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                var suspendCount = 0;
+                do
+                {
+                    suspendCount = ResumeThread(pOpenThread);
+                } while (suspendCount > 0);
+
+            }
+        }
+
         public void StartStream()
         {
             if (!isRunning())
@@ -119,7 +341,7 @@ namespace ShudderPT
                 process.StartInfo.RedirectStandardOutput = true;
                 process.StartInfo.RedirectStandardError = true;
                 process.StartInfo.CreateNoWindow = true;
-                process.StartInfo.Arguments = string.Join(" ",runArgs);
+                process.StartInfo.Arguments = string.Join(" ", runArgs);
 
                 //Event to handle async whatever
                 process.ErrorDataReceived += new DataReceivedEventHandler((sending, ev) =>
@@ -136,10 +358,11 @@ namespace ShudderPT
                 });
 
                 process.Start();
-                Console.WriteLine(string.Join(" ",runArgs));
+                Console.WriteLine(string.Join(" ", runArgs));
 
                 // Synchronously read the standard output of the spawned process.
-                try {
+                try
+                {
                     process.BeginErrorReadLine();
                     lastTime = time.Elapsed;
                     time.Start();
@@ -158,7 +381,6 @@ namespace ShudderPT
             }
         }
 
-        //Special invoke threadsafe trickery
         private void updateStatus(string text)
         {
             //Make sure our controls still exists. User may have closed window.
@@ -209,204 +431,22 @@ namespace ShudderPT
             }
         }
 
-        private void buttonPause_Click(object sender, EventArgs e)
+        private void bitrateVideoSlide_Scroll(object sender, EventArgs e)
         {
-            if (isRunning())
+            //vBit = (int)bitrateVideoSlide.Value;
+            //bitrateVideo.Value = vBit;
+        }
+
+        private void audioGetSource_Click(object sender, EventArgs e)
+        {
+            foreach (streamType stream in fileObj.streams)
             {
-                if (!paused)
+                if (stream.codec_type == "audio")
                 {
-                    SuspendProcess(process.Id);
-                    paused = true;
-                    buttonPause.Text = "Resume";
-                }
-                else
-                {
-                    ResumeProcess(process.Id);
-                    paused = false;
-                    buttonPause.Text = "Pause";
-                }
-            }
-        }
-
-        private static void SuspendProcess(int pid)
-        {
-            var process = Process.GetProcessById(pid);
-
-            if (process.ProcessName == string.Empty)
-                return;
-
-            foreach (ProcessThread pT in process.Threads)
-            {
-                IntPtr pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)pT.Id);
-
-                if (pOpenThread == IntPtr.Zero)
-                {
-                    continue;
-                }
-
-                SuspendThread(pOpenThread);
-
-                //CloseHandle(pOpenThread);
-            }
-        }
-
-        public static void ResumeProcess(int pid)
-        {
-            var process = Process.GetProcessById(pid);
-
-            if (process.ProcessName == string.Empty)
-                return;
-
-            foreach (ProcessThread pT in process.Threads)
-            {
-                IntPtr pOpenThread = OpenThread(ThreadAccess.SUSPEND_RESUME, false, (uint)pT.Id);
-
-                if (pOpenThread == IntPtr.Zero)
-                {
-                    continue;
-                }
-
-                var suspendCount = 0;
-                do
-                {
-                    suspendCount = ResumeThread(pOpenThread);
-                } while (suspendCount > 0);
-
-                //CloseHandle(pOpenThread);
-            }
-        }
-
-        private void buttonResume_Click(object sender, EventArgs e)
-        {
-            ResumeProcess(process.Id);
-        }
-
-        private void Main_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            StopStream();
-        }
-
-        private void Main_Load(object sender, EventArgs e)
-        {
-            try { fileName = Environment.GetCommandLineArgs()[1]; }
-            catch (Exception error) { }
-            if( fileName != "")
-            {
-                //Look for matching .srt for our file.
-                string[] paths = Directory.GetFiles(Path.GetDirectoryName(Path.GetFullPath(fileName)));
-                getFileData(fileName);
-                string sub = Path.GetDirectoryName(Path.GetFullPath(fileName)) +"\\"+Path.GetFileNameWithoutExtension(fileName) + ".srt";
-                if (paths.Contains(sub))
-                {
-                    //Update our sub name. THE ESCAPE IS REAL.
-                    subName = "\"" + sub.Replace("\\","\\\\\\\\").Replace(":", "\\\\:") + "\"" + ":force_style='FontName=Arial,FontSize=20'";
-                    subCheck.Enabled = true;
-                    //updateStatus(subName);
+                    //Do we actually have a bitrate for this stream?
+                    //if (stream.bit_rate != 0) { bitrateAudio.Value = Int32.Parse(stream.bit_rate.ToString().Remove(stream.bit_rate.ToString().Length - 3)); }
                 }
             }
-            destination.Text = targetURL;
-            file.Text = fileName;
-            bitrateAudio.Value = aBit;
-            bitrateVideo.Value = vBit;
-            videoRes.Text = vSize;
-            buttonPause.Enabled = false;
-        }
-
-        private void file_TextChanged(object sender, EventArgs e)
-        {
-            fileName = file.Text;
-        }
-
-        private void destination_TextChanged(object sender, EventArgs e)
-        {
-            targetURL = destination.Text;
-        }
-
-        private bool isRunning()
-        {
-            //Basic sanity check. TODO Find a better way to do this.
-            bool running = false;
-            //Did we even get there?
-            if (process.StartInfo.FileName != "")
-            {
-                //So sain. UUUUNF.
-                if (!process.HasExited) { running = true; }
-            }
-            return running;
-        }
-
-        private void bitrateVideo_ValueChanged(object sender, EventArgs e)
-        {
-            vBit = (int)bitrateVideo.Value;
-        }
-
-        private void bitrateAudio_ValueChanged(object sender, EventArgs e)
-        {
-            aBit = (int)bitrateAudio.Value;
-        }
-
-        private void videoRes_TextChanged(object sender, EventArgs e)
-        {
-            vSize = videoRes.Text;
-        }
-
-        private void numHour_ValueChanged(object sender, EventArgs e)
-        {
-            startTime[0] = (int)numHour.Value;
-        }
-
-        private void numMin_ValueChanged(object sender, EventArgs e)
-        {
-            startTime[1] = (int)numMin.Value;
-        }
-
-        private void numSec_ValueChanged(object sender, EventArgs e)
-        {
-            startTime[2] = (int)numSec.Value;
-        }
-
-        public Dictionary<string,string> getFileData(string path)
-        {
-            Process ffprobe = new Process();
-            //Run the thing.
-            ffprobe.StartInfo.FileName = "ffprobe.exe";
-            ffprobe.StartInfo.UseShellExecute = false;
-            ffprobe.StartInfo.RedirectStandardOutput = true;
-            ffprobe.StartInfo.RedirectStandardError = true;
-            ffprobe.StartInfo.CreateNoWindow = true;
-            ffprobe.StartInfo.Arguments = "-v quiet -print_format compact=p=0 -show_format " + "\"" + Path.GetFullPath(path) + "\"";
-
-            Dictionary<string, string> output = new Dictionary<string, string>();
-
-            ffprobe.Start();
-
-            using (StreamReader reader = ffprobe.StandardOutput)
-            {
-                string result = reader.ReadToEnd();
-                //result = result.Substring(result.IndexOf("Duration: "));
-
-                //Split the output.
-                string[] splits = result.Split('|');
-
-                foreach(string s in splits)
-                {
-                    string[] items = s.Split('=');
-                    output.Add(items[0], items[1]);
-                }
-
-                Console.WriteLine(output.ToString());
-
-                //TODO: Move this to it's own setup method with the rest of them.
-                //Put the info in the box. WHY NOT?
-                infoList.Text = result.Replace('|', '\n');
-
-                runtime = TimeSpan.FromSeconds((Double.Parse(output["duration"])));
-                fileRuntime.Text = runtime.ToString().TrimEnd('0');
-
-                numHour.Maximum = runtime.Hours; //TODO: Sanity check for start time.
-            }
-
-            return output;
         }
     }
 }
